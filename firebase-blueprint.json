@@ -1,0 +1,104 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "BuildLoop user profile",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "phone": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Batch": {
+      "title": "Batch",
+      "description": "C&D material inventory batch",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "materialType": { "type": "string" },
+        "materialSubtype": { "type": "string" },
+        "quantity": { "type": "number" },
+        "unit": { "type": "string" },
+        "pricePerUnit": { "type": "number" },
+        "sellerId": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "title", "materialType", "quantity"]
+    },
+    "Demand": {
+      "title": "Demand",
+      "description": "Buyer material requisition",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "materialType": { "type": "string" },
+        "quantityNeeded": { "type": "number" },
+        "buyerId": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "title", "materialType", "quantityNeeded"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Matched reuse order",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "batchId": { "type": "string" },
+        "demandId": { "type": "string" },
+        "status": { "type": "string" },
+        "quantity": { "type": "number" },
+        "orderType": { "type": "string" },
+        "matchScore": { "type": "number" },
+        "buyerEmail": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "batchId", "demandId", "quantity", "status"]
+    },
+    "SensorReading": {
+      "title": "SensorReading",
+      "description": "IoT sensory telemetry",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "deviceId": { "type": "string" },
+        "batchId": { "type": "string" },
+        "moisture": { "type": "number" },
+        "temperature": { "type": "number" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "deviceId", "batchId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile collection"
+    },
+    "/batches/{batchId}": {
+      "schema": "Batch",
+      "description": "Recovered C&D batches"
+    },
+    "/demands/{demandId}": {
+      "schema": "Demand",
+      "description": "Buyer requirements"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Executed transactions"
+    },
+    "/sensorReadings/{readingId}": {
+      "schema": "SensorReading",
+      "description": "IoT telemetry logs"
+    }
+  }
+}

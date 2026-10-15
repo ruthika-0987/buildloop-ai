@@ -1,0 +1,6 @@
+{
+  "name": "BuildLoop AI",
+  "description": "Evidence-based reuse engine with buyer protection for construction and demolition (C&D) materials in Hyderabad, India. From recovered material to feasible reuse.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
