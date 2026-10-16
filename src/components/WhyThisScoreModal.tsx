@@ -1,8 +1,16 @@
-import React, { useState } from 'react';
-import { X, Sparkles, CheckCircle2, AlertTriangle, ShieldCheck, HelpCircle } from 'lucide-react';
-import { MatchResult } from '../types';
-import { t } from '../i18n';
-import { MatchBandBadge, OrderTypeBadge } from './Badge';
+import React, { useState } from "react";
+import {
+  X,
+  Sparkles,
+  CheckCircle2,
+  AlertTriangle,
+  ShieldCheck,
+  HelpCircle,
+} from "lucide-react";
+import { MatchResult } from "../types";
+import { t } from "../i18n";
+import { MatchBandBadge, OrderTypeBadge } from "./Badge";
+import { apiFetch, readApiJson } from "../lib/api";
 
 interface WhyThisScoreModalProps {
   match: MatchResult;
@@ -15,7 +23,7 @@ export const WhyThisScoreModal: React.FC<WhyThisScoreModalProps> = ({
   match,
   batchMaterial,
   demandMaterial,
-  onClose
+  onClose,
 }) => {
   const [loadingAi, setLoadingAi] = useState(false);
   const [aiResult, setAiResult] = useState<any>(null);
@@ -25,9 +33,9 @@ export const WhyThisScoreModal: React.FC<WhyThisScoreModalProps> = ({
     setLoadingAi(true);
     setAiError(null);
     try {
-      const res = await fetch('/api/ai/explain-match', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await apiFetch("/api/ai/explain-match", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           batchMaterial,
           demandMaterial,
@@ -36,17 +44,20 @@ export const WhyThisScoreModal: React.FC<WhyThisScoreModalProps> = ({
           components: match.components,
           roadDistanceKm: match.roadDistanceKm,
           netSaving: match.netSaving,
-          hardFilterReasons: match.hardFilterReasons
-        })
+          hardFilterReasons: match.hardFilterReasons,
+        }),
       });
-      const data = await res.json();
-      if (data.source === 'unavailable') {
-        setAiError(data.reason || 'AI explanation service unavailable. Rely on deterministic engine score breakdown.');
+      const data = await readApiJson<any>(res);
+      if (data.source === "unavailable") {
+        setAiError(
+          data.reason ||
+            "AI explanation service unavailable. Rely on deterministic engine score breakdown.",
+        );
       } else {
         setAiResult(data);
       }
     } catch (err: any) {
-      setAiError(err.message || 'AI explanation service unavailable.');
+      setAiError(err.message || "AI explanation service unavailable.");
     } finally {
       setLoadingAi(false);
     }
@@ -57,44 +68,44 @@ export const WhyThisScoreModal: React.FC<WhyThisScoreModalProps> = ({
       name: t("Compatibility"),
       score: match.components.compatibility,
       max: 25,
-      formula: 'Material specification & physical grade match',
-      desc: 'Compares material type, grade, and application constraints.'
+      formula: "Material specification & physical grade match",
+      desc: "Compares material type, grade, and application constraints.",
     },
     {
       name: t("Quantity"),
       score: match.components.quantity,
       max: 20,
-      formula: 'round(20 × min(1, avail / needed))',
-      desc: 'Checks if available batch satisfies buyer requisition.'
+      formula: "round(20 × min(1, avail / needed))",
+      desc: "Checks if available batch satisfies buyer requisition.",
     },
     {
       name: t("Timing"),
       score: match.components.timing,
       max: 15,
-      formula: 'Overlap between recovery availability and construction window',
-      desc: 'Prevents holding inventory idle or site project delays.'
+      formula: "Overlap between recovery availability and construction window",
+      desc: "Prevents holding inventory idle or site project delays.",
     },
     {
       name: t("Distance"),
       score: match.components.distance,
       max: 15,
       formula: `round(15 × max(0, 1 - roadKm / 40)) [${match.roadDistanceKm} km road]`,
-      desc: 'Calculated via Haversine distance × 1.3 Hyderabad circuity.'
+      desc: "Calculated via Haversine distance × 1.3 Hyderabad circuity.",
     },
     {
       name: t("Evidence"),
       score: match.components.evidence,
       max: 10,
-      formula: 'L1 = round(5 × readiness/100), L2/L3 = 10',
-      desc: 'Rewards lab documentation, verified measurements, and site inspections.'
+      formula: "L1 = round(5 × readiness/100), L2/L3 = 10",
+      desc: "Rewards lab documentation, verified measurements, and site inspections.",
     },
     {
       name: t("Economics"),
       score: match.components.economics,
       max: 15,
-      formula: 'round(15 × clamp((netSaving / newCost) / 0.30, 0, 1))',
-      desc: `Buyer saves ₹${match.netSaving} (${match.savingPercent}%) after estimated logistics.`
-    }
+      formula: "round(15 × clamp((netSaving / newCost) / 0.30, 0, 1))",
+      desc: `Buyer saves ₹${match.netSaving} (${match.savingPercent}%) after estimated logistics.`,
+    },
   ];
 
   return (
@@ -111,7 +122,10 @@ export const WhyThisScoreModal: React.FC<WhyThisScoreModalProps> = ({
               Deterministic matching engine • Hyderabad Pilot Rules
             </p>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-500">
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-500"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -119,7 +133,9 @@ export const WhyThisScoreModal: React.FC<WhyThisScoreModalProps> = ({
         {/* Hard Filters Status */}
         <div className="mt-4 p-3 rounded-xl border bg-stone-50 dark:bg-stone-950/60 text-xs">
           <div className="flex items-center justify-between">
-            <span className="font-semibold text-stone-700 dark:text-stone-300">Hard Feasibility Filters:</span>
+            <span className="font-semibold text-stone-700 dark:text-stone-300">
+              Hard Feasibility Filters:
+            </span>
             {match.passedHardFilters ? (
               <span className="inline-flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400">
                 <CheckCircle2 className="w-4 h-4" /> Passed all 7 rules
@@ -132,10 +148,12 @@ export const WhyThisScoreModal: React.FC<WhyThisScoreModalProps> = ({
           </div>
           {!match.passedHardFilters && match.hardFilterReasons.length > 0 && (
             <ul className="mt-2 space-y-1 text-red-600 dark:text-red-400">
-              {match.hardFilterReasons.map(r => (
+              {match.hardFilterReasons.map((r) => (
                 <li key={r} className="flex items-start gap-1.5">
                   <span className="font-bold">•</span>
-                  <span><strong>{r}:</strong> {t(r)}</span>
+                  <span>
+                    <strong>{r}:</strong> {t(r)}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -145,7 +163,9 @@ export const WhyThisScoreModal: React.FC<WhyThisScoreModalProps> = ({
         {/* Recommended Order Type */}
         <div className="mt-3 flex items-center justify-between p-3 rounded-xl border border-indigo-100 dark:border-indigo-950 bg-indigo-50/50 dark:bg-indigo-950/30 text-xs">
           <div>
-            <span className="font-semibold text-indigo-950 dark:text-indigo-200">Suggested Protection Level:</span>
+            <span className="font-semibold text-indigo-950 dark:text-indigo-200">
+              Suggested Protection Level:
+            </span>
             <p className="text-indigo-700 dark:text-indigo-300 text-[11px] mt-0.5">
               Based on material application and required evidence level.
             </p>
@@ -158,10 +178,13 @@ export const WhyThisScoreModal: React.FC<WhyThisScoreModalProps> = ({
           <h4 className="font-bold text-xs uppercase tracking-wider text-stone-500">
             Engine Score Breakdown (100 Points Total)
           </h4>
-          {components.map(c => {
+          {components.map((c) => {
             const pct = Math.round((c.score / c.max) * 100);
             return (
-              <div key={c.name} className="p-3 rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900">
+              <div
+                key={c.name}
+                className="p-3 rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900"
+              >
                 <div className="flex items-center justify-between text-xs font-semibold mb-1">
                   <span>{c.name}</span>
                   <span className="font-mono text-emerald-600 dark:text-emerald-400">
@@ -176,7 +199,9 @@ export const WhyThisScoreModal: React.FC<WhyThisScoreModalProps> = ({
                 </div>
                 <div className="flex items-center justify-between text-[11px] text-stone-500 dark:text-stone-400 mt-1.5">
                   <span>{c.desc}</span>
-                  <span className="font-mono text-[10px] text-stone-400">{c.formula}</span>
+                  <span className="font-mono text-[10px] text-stone-400">
+                    {c.formula}
+                  </span>
                 </div>
               </div>
             );
@@ -221,7 +246,9 @@ export const WhyThisScoreModal: React.FC<WhyThisScoreModalProps> = ({
               </p>
               {aiResult.strengths?.length > 0 && (
                 <div>
-                  <span className="font-semibold text-emerald-700 dark:text-emerald-400">Strengths:</span>
+                  <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                    Strengths:
+                  </span>
                   <ul className="list-disc pl-4 text-stone-600 dark:text-stone-300 space-y-0.5 mt-0.5">
                     {aiResult.strengths.map((s: string, i: number) => (
                       <li key={i}>{s}</li>
@@ -231,7 +258,9 @@ export const WhyThisScoreModal: React.FC<WhyThisScoreModalProps> = ({
               )}
               {aiResult.cautions?.length > 0 && (
                 <div>
-                  <span className="font-semibold text-amber-700 dark:text-amber-400">Cautions:</span>
+                  <span className="font-semibold text-amber-700 dark:text-amber-400">
+                    Cautions:
+                  </span>
                   <ul className="list-disc pl-4 text-stone-600 dark:text-stone-300 space-y-0.5 mt-0.5">
                     {aiResult.cautions.map((c: string, i: number) => (
                       <li key={i}>{c}</li>

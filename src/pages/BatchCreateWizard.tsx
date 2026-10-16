@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Camera,
   Upload,
@@ -11,13 +11,14 @@ import {
   ArrowRight,
   ArrowLeft,
   ShieldCheck,
-  Info
-} from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
-import { useData } from '../context/DataContext';
-import { useToast } from '../context/ToastContext';
-import { useTranslation, t } from '../i18n';
-import { Batch, TrustLevel } from '../types';
+  Info,
+} from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { useData } from "../context/DataContext";
+import { useToast } from "../context/ToastContext";
+import { useTranslation, t } from "../i18n";
+import { Batch, TrustLevel } from "../types";
+import { apiFetch, readApiJson } from "../lib/api";
 
 export const BatchCreateWizard: React.FC = () => {
   const { user } = useAuth();
@@ -28,60 +29,70 @@ export const BatchCreateWizard: React.FC = () => {
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Photos state (1 to 6)
-  const [photos, setPhotos] = useState<Array<{ mimeType: string; data: string; preview: string }>>([]);
+  const [photos, setPhotos] = useState<
+    Array<{ mimeType: string; data: string; preview: string }>
+  >([]);
   const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<any>(null);
   const [aiMessage, setAiMessage] = useState<string | null>(null);
 
   // Form Fields
-  const [title, setTitle] = useState('');
-  const [materialType, setMaterialType] = useState('Clay Bricks');
-  const [materialSubtype, setMaterialSubtype] = useState('');
-  const [condition, setCondition] = useState<Batch['condition']>('Intact');
-  const [visibleMortar, setVisibleMortar] = useState('');
+  const [title, setTitle] = useState("");
+  const [materialType, setMaterialType] = useState("Clay Bricks");
+  const [materialSubtype, setMaterialSubtype] = useState("");
+  const [condition, setCondition] = useState<Batch["condition"]>("Intact");
+  const [visibleMortar, setVisibleMortar] = useState("");
   const [quantity, setQuantity] = useState<number>(1000);
-  const [unit, setUnit] = useState('Pieces');
+  const [unit, setUnit] = useState("Pieces");
   const [pricePerUnit, setPricePerUnit] = useState<number>(4.5);
   const [originalNewPrice, setOriginalNewPrice] = useState<number>(10);
   const [isFree, setIsFree] = useState(false);
 
   // Location
-  const [address, setAddress] = useState('Jubilee Hills, Road No. 36, Hyderabad');
+  const [address, setAddress] = useState(
+    "Jubilee Hills, Road No. 36, Hyderabad",
+  );
   const [lat, setLat] = useState<number>(17.4319);
   const [lng, setLng] = useState<number>(78.4073);
   const [gettingLocation, setGettingLocation] = useState(false);
 
   // Dates
-  const [availableFrom, setAvailableFrom] = useState(new Date().toISOString().slice(0, 10));
+  const [availableFrom, setAvailableFrom] = useState(
+    new Date().toISOString().slice(0, 10),
+  );
   const [availableUntil, setAvailableUntil] = useState(
-    new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)
+    new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
   );
 
   // Measurements
-  const [lengthMm, setLengthMm] = useState<string>('230');
-  const [widthMm, setWidthMm] = useState<string>('110');
-  const [heightMm, setHeightMm] = useState<string>('70');
-  const [strengthMpa, setStrengthMpa] = useState<string>('7.5');
+  const [lengthMm, setLengthMm] = useState<string>("230");
+  const [widthMm, setWidthMm] = useState<string>("110");
+  const [heightMm, setHeightMm] = useState<string>("70");
+  const [strengthMpa, setStrengthMpa] = useState<string>("7.5");
 
   // Documents
-  const [documents, setDocuments] = useState<Array<{ name: string; type: string; verified: boolean; date: string }>>([]);
-  const [docName, setDocName] = useState('');
-  const [docType, setDocType] = useState('Demolition Permit / Source Deed');
+  const [documents, setDocuments] = useState<
+    Array<{ name: string; type: string; verified: boolean; date: string }>
+  >([]);
+  const [docName, setDocName] = useState("");
+  const [docType, setDocType] = useState("Demolition Permit / Source Deed");
 
   // Legal declaration
   const [lawfulDeclaration, setLawfulDeclaration] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Client-side image compression
-  const compressImage = (file: File): Promise<{ mimeType: string; data: string; preview: string }> => {
+  const compressImage = (
+    file: File,
+  ): Promise<{ mimeType: string; data: string; preview: string }> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
-      reader.onload = ev => {
+      reader.onload = (ev) => {
         const img = new Image();
         img.src = ev.target?.result as string;
         img.onload = () => {
-          const canvas = document.createElement('canvas');
+          const canvas = document.createElement("canvas");
           const maxDim = 1200;
           let width = img.width;
           let height = img.height;
@@ -96,13 +107,13 @@ export const BatchCreateWizard: React.FC = () => {
           }
           canvas.width = width;
           canvas.height = height;
-          const ctx = canvas.getContext('2d');
+          const ctx = canvas.getContext("2d");
           ctx?.drawImage(img, 0, 0, width, height);
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.8);
           resolve({
-            mimeType: 'image/jpeg',
+            mimeType: "image/jpeg",
             data: compressedDataUrl,
-            preview: compressedDataUrl
+            preview: compressedDataUrl,
           });
         };
         img.onerror = reject;
@@ -116,7 +127,10 @@ export const BatchCreateWizard: React.FC = () => {
     if (files.length === 0) return;
 
     if (photos.length + files.length > 6) {
-      showError('Maximum 6 photos allowed per batch listing.', 'Please remove some images first.');
+      showError(
+        "Maximum 6 photos allowed per batch listing.",
+        "Please remove some images first.",
+      );
       return;
     }
 
@@ -130,7 +144,10 @@ export const BatchCreateWizard: React.FC = () => {
         runAiPhotoAnalysis(nextPhotos);
       }
     } catch (err: any) {
-      showError('Could not process image upload.', 'Ensure file is a valid JPG or PNG under 10MB.');
+      showError(
+        "Could not process image upload.",
+        "Ensure file is a valid JPG or PNG under 10MB.",
+      );
     }
   };
 
@@ -139,33 +156,36 @@ export const BatchCreateWizard: React.FC = () => {
     setAiMessage(null);
     try {
       const payload = {
-        base64Images: imagesToAnalyze.map(p => ({
+        base64Images: imagesToAnalyze.map((p) => ({
           mimeType: p.mimeType,
-          data: p.data
+          data: p.data,
         })),
-        context: 'Salvaged C&D material batch in Hyderabad'
+        context: "Salvaged C&D material batch in Hyderabad",
       };
 
-      const res = await fetch('/api/ai/analyze-photos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+      const res = await apiFetch("/api/ai/analyze-photos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
 
-      const result = await res.json();
-      if (result.source === 'unavailable') {
+      const result = await readApiJson<any>(res);
+      if (result.source === "unavailable") {
         setAiMessage(t("AI reading unavailable. Continue with manual entry."));
       } else {
         setAiSuggestions(result);
         // Pre-fill fields if empty or default
         if (result.materialType) setMaterialType(result.materialType);
-        if (result.materialSubtype && !materialSubtype) setMaterialSubtype(result.materialSubtype);
+        if (result.materialSubtype && !materialSubtype)
+          setMaterialSubtype(result.materialSubtype);
         if (result.estimatedCondition) setCondition(result.estimatedCondition);
         if (result.suggestedUnit && !unit) setUnit(result.suggestedUnit);
         if (!title) {
-          setTitle(`Salvaged ${result.materialSubtype || result.materialType} (${address.split(',')[0]})`);
+          setTitle(
+            `Salvaged ${result.materialSubtype || result.materialType} (${address.split(",")[0]})`,
+          );
         }
-        showSuccess('AI photo reading completed. Review and adjust fields.');
+        showSuccess("AI photo reading completed. Review and adjust fields.");
       }
     } catch (err: any) {
       setAiMessage(t("AI reading unavailable. Continue with manual entry."));
@@ -175,45 +195,50 @@ export const BatchCreateWizard: React.FC = () => {
   };
 
   const removePhoto = (index: number) => {
-    setPhotos(prev => prev.filter((_, i) => i !== index));
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
   };
 
   // Browser Geolocation with consent
   const handleUseMyLocation = () => {
     if (!navigator.geolocation) {
-      showError('Geolocation is not supported by your browser.');
+      showError("Geolocation is not supported by your browser.");
       return;
     }
     setGettingLocation(true);
     navigator.geolocation.getCurrentPosition(
-      pos => {
+      (pos) => {
         setLat(pos.coords.latitude);
         setLng(pos.coords.longitude);
-        setAddress(`Hyderabad Site (${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)})`);
+        setAddress(
+          `Hyderabad Site (${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)})`,
+        );
         setGettingLocation(false);
-        showSuccess('Location pinned to your current GPS coordinates.');
+        showSuccess("Location pinned to your current GPS coordinates.");
       },
-      err => {
+      (err) => {
         setGettingLocation(false);
-        showError('Could not get GPS location.', 'Check browser permissions or enter address manually.');
+        showError(
+          "Could not get GPS location.",
+          "Check browser permissions or enter address manually.",
+        );
       },
-      { timeout: 10000 }
+      { timeout: 10000 },
     );
   };
 
   // Add document
   const handleAddDocument = () => {
     if (!docName.trim()) return;
-    setDocuments(prev => [
+    setDocuments((prev) => [
       ...prev,
       {
         name: docName.trim(),
         type: docType,
         verified: true,
-        date: new Date().toISOString().slice(0, 10)
-      }
+        date: new Date().toISOString().slice(0, 10),
+      },
     ]);
-    setDocName('');
+    setDocName("");
   };
 
   // Calculate Readiness Score 0 - 100
@@ -238,18 +263,24 @@ export const BatchCreateWizard: React.FC = () => {
   // L1 Visual: default
   // L2 Evidence Verified: readiness >= 70 and at least 1 document or measurement
   // L3: Only Inspector/Admin
-  let derivedTrustLevel: TrustLevel = 'L1';
+  let derivedTrustLevel: TrustLevel = "L1";
   if (readiness >= 70 && (documents.length > 0 || (lengthMm && strengthMpa))) {
-    derivedTrustLevel = 'L2';
+    derivedTrustLevel = "L2";
   }
 
-  const handleSave = async (status: 'draft' | 'published') => {
+  const handleSave = async (status: "draft" | "published") => {
     if (!title.trim()) {
-      showError('Please enter a title for this batch.', 'Provide a descriptive name.');
+      showError(
+        "Please enter a title for this batch.",
+        "Provide a descriptive name.",
+      );
       return;
     }
-    if (status === 'published' && !lawfulDeclaration) {
-      showError('You must confirm the Lawful Recovery Declaration.', 'Check the mandatory checkbox.');
+    if (status === "published" && !lawfulDeclaration) {
+      showError(
+        "You must confirm the Lawful Recovery Declaration.",
+        "Check the mandatory checkbox.",
+      );
       return;
     }
 
@@ -264,56 +295,63 @@ export const BatchCreateWizard: React.FC = () => {
       quantity: Number(quantity) || 1,
       unit,
       pricePerUnit: isFree ? 0 : Number(pricePerUnit) || 0,
-      originalNewPrice: Number(originalNewPrice) || (Number(pricePerUnit) * 1.8),
+      originalNewPrice: Number(originalNewPrice) || Number(pricePerUnit) * 1.8,
       condition,
       visibleMortar: visibleMortar.trim(),
       lawfulDeclarationAccepted: lawfulDeclaration,
       location: {
         address: address.trim(),
         lat,
-        lng
+        lng,
       },
       availableFrom,
       availableUntil,
       readinessScore: readiness,
       trustLevel: derivedTrustLevel,
-      sellerId: user?.id || 'guest_seller',
-      sellerName: user?.name || 'Local Seller',
+      sellerId: user?.id || "guest_seller",
+      sellerName: user?.name || "Local Seller",
       sellerPhone: user?.phone,
-      photos: photos.map(p => p.preview),
+      photos: photos.map((p) => p.preview),
       documents,
       measurements: {
         lengthMm: Number(lengthMm) || undefined,
         widthMm: Number(widthMm) || undefined,
         heightMm: Number(heightMm) || undefined,
-        compressiveStrengthMpa: Number(strengthMpa) || undefined
+        compressiveStrengthMpa: Number(strengthMpa) || undefined,
       },
       status,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     };
 
-    const res = await saveRecord('batches', newBatch);
+    const res = await saveRecord("batches", newBatch);
     setSaving(false);
 
     if (res.success) {
       // Record 'recovered' inventory event
-      await saveRecord('events', {
+      await saveRecord("events", {
         id: `evt-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
         batchId,
-        eventType: 'recovered',
+        eventType: "recovered",
         quantity: Number(quantity) || 1,
         unit,
-        source: 'manual',
-        actorId: user?.id || 'seller',
-        actorName: user?.name || 'Seller',
+        source: "manual",
+        actorId: user?.id || "seller",
+        actorName: user?.name || "Seller",
         notes: `Initial stock recovery listing created with ${readiness}% readiness score.`,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
-      showSuccess(status === 'published' ? 'Batch published successfully!' : 'Draft saved.');
+      showSuccess(
+        status === "published"
+          ? "Batch published successfully!"
+          : "Draft saved.",
+      );
       window.location.hash = `#/batches/${batchId}`;
     } else {
-      showError(res.error || 'Failed to create batch.', 'Check all required fields.');
+      showError(
+        res.error || "Failed to create batch.",
+        "Check all required fields.",
+      );
     }
   };
 
@@ -328,7 +366,8 @@ export const BatchCreateWizard: React.FC = () => {
           List Recovered C&D Material
         </h1>
         <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">
-          Complete the 3-step wizard to register recovered materials with verifiable trust scores.
+          Complete the 3-step wizard to register recovered materials with
+          verifiable trust scores.
         </p>
       </div>
 
@@ -337,7 +376,9 @@ export const BatchCreateWizard: React.FC = () => {
         <button
           onClick={() => setStep(1)}
           className={`flex items-center gap-2 font-bold ${
-            step === 1 ? 'text-emerald-600 dark:text-emerald-400' : 'text-stone-500'
+            step === 1
+              ? "text-emerald-600 dark:text-emerald-400"
+              : "text-stone-500"
           }`}
         >
           <span className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center text-[10px]">
@@ -351,7 +392,9 @@ export const BatchCreateWizard: React.FC = () => {
         <button
           onClick={() => setStep(2)}
           className={`flex items-center gap-2 font-bold ${
-            step === 2 ? 'text-emerald-600 dark:text-emerald-400' : 'text-stone-500'
+            step === 2
+              ? "text-emerald-600 dark:text-emerald-400"
+              : "text-stone-500"
           }`}
         >
           <span className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center text-[10px]">
@@ -365,7 +408,9 @@ export const BatchCreateWizard: React.FC = () => {
         <button
           onClick={() => setStep(3)}
           className={`flex items-center gap-2 font-bold ${
-            step === 3 ? 'text-emerald-600 dark:text-emerald-400' : 'text-stone-500'
+            step === 3
+              ? "text-emerald-600 dark:text-emerald-400"
+              : "text-stone-500"
           }`}
         >
           <span className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center text-[10px]">
@@ -383,15 +428,23 @@ export const BatchCreateWizard: React.FC = () => {
               Upload Site Photos (1 to 6)
             </h2>
             <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">
-              {t("Take or upload 1 to 6 photos of the recovered materials.")} Images are compressed client-side and analyzed by Gemini Vision.
+              {t("Take or upload 1 to 6 photos of the recovered materials.")}{" "}
+              Images are compressed client-side and analyzed by Gemini Vision.
             </p>
           </div>
 
           {/* Photo Grid & Upload Area */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             {photos.map((p, idx) => (
-              <div key={idx} className="relative aspect-4/3 rounded-xl overflow-hidden border border-stone-200 dark:border-stone-700 group shadow-xs">
-                <img src={p.preview} alt={`Upload ${idx + 1}`} className="w-full h-full object-cover" />
+              <div
+                key={idx}
+                className="relative aspect-4/3 rounded-xl overflow-hidden border border-stone-200 dark:border-stone-700 group shadow-xs"
+              >
+                <img
+                  src={p.preview}
+                  alt={`Upload ${idx + 1}`}
+                  className="w-full h-full object-cover"
+                />
                 <button
                   onClick={() => removePhoto(idx)}
                   className="absolute top-2 right-2 p-1 rounded-full bg-black/70 hover:bg-red-600 text-white transition"
@@ -452,23 +505,38 @@ export const BatchCreateWizard: React.FC = () => {
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-stone-600 dark:text-stone-400">
-                <div><strong>Detected Material:</strong> {aiSuggestions.materialType}</div>
-                <div><strong>Subtype:</strong> {aiSuggestions.materialSubtype}</div>
-                <div><strong>Visual Condition:</strong> {aiSuggestions.estimatedCondition}</div>
-                <div><strong>Suggested Unit:</strong> {aiSuggestions.suggestedUnit}</div>
+                <div>
+                  <strong>Detected Material:</strong>{" "}
+                  {aiSuggestions.materialType}
+                </div>
+                <div>
+                  <strong>Subtype:</strong> {aiSuggestions.materialSubtype}
+                </div>
+                <div>
+                  <strong>Visual Condition:</strong>{" "}
+                  {aiSuggestions.estimatedCondition}
+                </div>
+                <div>
+                  <strong>Suggested Unit:</strong> {aiSuggestions.suggestedUnit}
+                </div>
               </div>
               {aiSuggestions.visibleObservations?.length > 0 && (
                 <div>
-                  <span className="font-semibold text-stone-700 dark:text-stone-300">Observations:</span>
+                  <span className="font-semibold text-stone-700 dark:text-stone-300">
+                    Observations:
+                  </span>
                   <ul className="list-disc pl-4 mt-0.5 space-y-0.5 text-stone-500 dark:text-stone-400">
-                    {aiSuggestions.visibleObservations.map((obs: string, i: number) => (
-                      <li key={i}>{obs}</li>
-                    ))}
+                    {aiSuggestions.visibleObservations.map(
+                      (obs: string, i: number) => (
+                        <li key={i}>{obs}</li>
+                      ),
+                    )}
                   </ul>
                 </div>
               )}
               <p className="text-[10px] text-stone-400 italic">
-                Note: AI suggestions are non-binding. You can modify any field in Step 2.
+                Note: AI suggestions are non-binding. You can modify any field
+                in Step 2.
               </p>
             </div>
           )}
@@ -493,7 +561,8 @@ export const BatchCreateWizard: React.FC = () => {
               Material Specification & Location
             </h2>
             <div className="text-xs text-stone-500 font-mono">
-              Readiness: <strong className="text-emerald-600">{readiness}%</strong>
+              Readiness:{" "}
+              <strong className="text-emerald-600">{readiness}%</strong>
             </div>
           </div>
 
@@ -506,7 +575,7 @@ export const BatchCreateWizard: React.FC = () => {
               <input
                 type="text"
                 value={title}
-                onChange={e => setTitle(e.target.value)}
+                onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. Salvaged Red Clay Bricks (Jubilee Hills)"
                 className="w-full px-3.5 py-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-sm text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
@@ -519,16 +588,24 @@ export const BatchCreateWizard: React.FC = () => {
                 </label>
                 <select
                   value={materialType}
-                  onChange={e => setMaterialType(e.target.value)}
+                  onChange={(e) => setMaterialType(e.target.value)}
                   className="w-full px-3.5 py-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-sm text-stone-900 dark:text-stone-100"
                 >
                   <option value="Clay Bricks">Clay Bricks</option>
                   <option value="Concrete Blocks">Concrete Blocks</option>
                   <option value="Fly Ash Bricks">Fly Ash Bricks</option>
-                  <option value="Recycled Concrete Aggregate (RCA)">Recycled Concrete Aggregate (RCA)</option>
-                  <option value="Granite & Stone Rubble">Granite & Stone Rubble</option>
-                  <option value="Rebar & Steel Sections">Rebar & Steel Sections</option>
-                  <option value="Timber & Wood Scantlings">Timber & Wood Scantlings</option>
+                  <option value="Recycled Concrete Aggregate (RCA)">
+                    Recycled Concrete Aggregate (RCA)
+                  </option>
+                  <option value="Granite & Stone Rubble">
+                    Granite & Stone Rubble
+                  </option>
+                  <option value="Rebar & Steel Sections">
+                    Rebar & Steel Sections
+                  </option>
+                  <option value="Timber & Wood Scantlings">
+                    Timber & Wood Scantlings
+                  </option>
                   <option value="Ceramic Tiles">Ceramic Tiles</option>
                   <option value="Other">Other</option>
                 </select>
@@ -541,7 +618,7 @@ export const BatchCreateWizard: React.FC = () => {
                 <input
                   type="text"
                   value={materialSubtype}
-                  onChange={e => setMaterialSubtype(e.target.value)}
+                  onChange={(e) => setMaterialSubtype(e.target.value)}
                   placeholder="e.g. Hand-moulded Red Clay Bricks"
                   className="w-full px-3.5 py-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-sm text-stone-900 dark:text-stone-100"
                 />
@@ -555,7 +632,7 @@ export const BatchCreateWizard: React.FC = () => {
                 </label>
                 <select
                   value={condition}
-                  onChange={e => setCondition(e.target.value as any)}
+                  onChange={(e) => setCondition(e.target.value as any)}
                   className="w-full px-3.5 py-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-sm text-stone-900 dark:text-stone-100"
                 >
                   <option value="Intact">Intact</option>
@@ -574,7 +651,9 @@ export const BatchCreateWizard: React.FC = () => {
                   type="number"
                   min="1"
                   value={quantity}
-                  onChange={e => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                  onChange={(e) =>
+                    setQuantity(Math.max(1, parseInt(e.target.value) || 1))
+                  }
                   className="w-full px-3.5 py-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-sm text-stone-900 dark:text-stone-100"
                 />
               </div>
@@ -585,7 +664,7 @@ export const BatchCreateWizard: React.FC = () => {
                 </label>
                 <select
                   value={unit}
-                  onChange={e => setUnit(e.target.value)}
+                  onChange={(e) => setUnit(e.target.value)}
                   className="w-full px-3.5 py-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-sm text-stone-900 dark:text-stone-100"
                 >
                   <option value="Pieces">Pieces</option>
@@ -606,7 +685,7 @@ export const BatchCreateWizard: React.FC = () => {
                   <input
                     type="checkbox"
                     checked={isFree}
-                    onChange={e => setIsFree(e.target.checked)}
+                    onChange={(e) => setIsFree(e.target.checked)}
                     className="rounded text-emerald-600 focus:ring-emerald-500"
                   />
                   <span>{t("Free / Zero Cost")}</span>
@@ -623,7 +702,9 @@ export const BatchCreateWizard: React.FC = () => {
                       type="number"
                       step="0.1"
                       value={pricePerUnit}
-                      onChange={e => setPricePerUnit(parseFloat(e.target.value) || 0)}
+                      onChange={(e) =>
+                        setPricePerUnit(parseFloat(e.target.value) || 0)
+                      }
                       className="w-full px-3 py-1.5 rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-sm"
                     />
                   </div>
@@ -635,7 +716,9 @@ export const BatchCreateWizard: React.FC = () => {
                       type="number"
                       step="0.1"
                       value={originalNewPrice}
-                      onChange={e => setOriginalNewPrice(parseFloat(e.target.value) || 0)}
+                      onChange={(e) =>
+                        setOriginalNewPrice(parseFloat(e.target.value) || 0)
+                      }
                       className="w-full px-3 py-1.5 rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-sm"
                     />
                   </div>
@@ -656,13 +739,15 @@ export const BatchCreateWizard: React.FC = () => {
                   className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 hover:underline"
                 >
                   <MapPin className="w-3.5 h-3.5" />
-                  <span>{gettingLocation ? 'Locating…' : 'Use my GPS location'}</span>
+                  <span>
+                    {gettingLocation ? "Locating…" : "Use my GPS location"}
+                  </span>
                 </button>
               </div>
               <input
                 type="text"
                 value={address}
-                onChange={e => setAddress(e.target.value)}
+                onChange={(e) => setAddress(e.target.value)}
                 placeholder="Site address, locality, Hyderabad"
                 className="w-full px-3.5 py-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-sm"
               />
@@ -674,43 +759,53 @@ export const BatchCreateWizard: React.FC = () => {
                 <span className="font-semibold text-xs text-stone-900 dark:text-stone-100">
                   Dimensional & Strength Measurements (+15% Readiness)
                 </span>
-                <span className="text-[10px] text-stone-400">IS 3495 reference</span>
+                <span className="text-[10px] text-stone-400">
+                  IS 3495 reference
+                </span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
-                  <label className="block text-[10px] text-stone-500">Length (mm)</label>
+                  <label className="block text-[10px] text-stone-500">
+                    Length (mm)
+                  </label>
                   <input
                     type="number"
                     value={lengthMm}
-                    onChange={e => setLengthMm(e.target.value)}
+                    onChange={(e) => setLengthMm(e.target.value)}
                     className="w-full px-2.5 py-1.5 rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-xs"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-stone-500">Width (mm)</label>
+                  <label className="block text-[10px] text-stone-500">
+                    Width (mm)
+                  </label>
                   <input
                     type="number"
                     value={widthMm}
-                    onChange={e => setWidthMm(e.target.value)}
+                    onChange={(e) => setWidthMm(e.target.value)}
                     className="w-full px-2.5 py-1.5 rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-xs"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-stone-500">Height (mm)</label>
+                  <label className="block text-[10px] text-stone-500">
+                    Height (mm)
+                  </label>
                   <input
                     type="number"
                     value={heightMm}
-                    onChange={e => setHeightMm(e.target.value)}
+                    onChange={(e) => setHeightMm(e.target.value)}
                     className="w-full px-2.5 py-1.5 rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-xs"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-stone-500">Est. Strength (MPa)</label>
+                  <label className="block text-[10px] text-stone-500">
+                    Est. Strength (MPa)
+                  </label>
                   <input
                     type="number"
                     step="0.1"
                     value={strengthMpa}
-                    onChange={e => setStrengthMpa(e.target.value)}
+                    onChange={(e) => setStrengthMpa(e.target.value)}
                     className="w-full px-2.5 py-1.5 rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-xs"
                   />
                 </div>
@@ -726,16 +821,18 @@ export const BatchCreateWizard: React.FC = () => {
                 <input
                   type="text"
                   value={docName}
-                  onChange={e => setDocName(e.target.value)}
+                  onChange={(e) => setDocName(e.target.value)}
                   placeholder="e.g. GHMC Demolition Authorization.pdf"
                   className="flex-1 px-3 py-1.5 rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-xs"
                 />
                 <select
                   value={docType}
-                  onChange={e => setDocType(e.target.value)}
+                  onChange={(e) => setDocType(e.target.value)}
                   className="px-2.5 py-1.5 rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 text-xs"
                 >
-                  <option value="Demolition Permit / Source Deed">Permit</option>
+                  <option value="Demolition Permit / Source Deed">
+                    Permit
+                  </option>
                   <option value="Lab Test Report">Lab Test</option>
                   <option value="Weighbridge Slip">Weighbridge</option>
                 </select>
@@ -751,14 +848,23 @@ export const BatchCreateWizard: React.FC = () => {
               {documents.length > 0 && (
                 <div className="space-y-1.5 pt-2">
                   {documents.map((d, i) => (
-                    <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-stone-800 text-xs border border-stone-200 dark:border-stone-700">
+                    <div
+                      key={i}
+                      className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-stone-800 text-xs border border-stone-200 dark:border-stone-700"
+                    >
                       <div className="flex items-center gap-2">
                         <FileText className="w-3.5 h-3.5 text-blue-500" />
                         <span className="font-medium">{d.name}</span>
-                        <span className="text-[10px] text-stone-400">({d.type})</span>
+                        <span className="text-[10px] text-stone-400">
+                          ({d.type})
+                        </span>
                       </div>
                       <button
-                        onClick={() => setDocuments(docs => docs.filter((_, idx) => idx !== i))}
+                        onClick={() =>
+                          setDocuments((docs) =>
+                            docs.filter((_, idx) => idx !== i),
+                          )
+                        }
                         className="text-stone-400 hover:text-red-500"
                       >
                         <X className="w-3.5 h-3.5" />
@@ -803,10 +909,16 @@ export const BatchCreateWizard: React.FC = () => {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold">Trust Tier:</span>
-              <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                derivedTrustLevel === 'L2' ? 'bg-blue-100 text-blue-800' : 'bg-stone-100 text-stone-800'
-              }`}>
-                {derivedTrustLevel === 'L2' ? t("L2 Evidence Verified") : t("L1 Visual Record")}
+              <span
+                className={`px-2 py-0.5 rounded text-xs font-bold ${
+                  derivedTrustLevel === "L2"
+                    ? "bg-blue-100 text-blue-800"
+                    : "bg-stone-100 text-stone-800"
+                }`}
+              >
+                {derivedTrustLevel === "L2"
+                  ? t("L2 Evidence Verified")
+                  : t("L1 Visual Record")}
               </span>
             </div>
           </div>
@@ -815,7 +927,9 @@ export const BatchCreateWizard: React.FC = () => {
           <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-950/60 border border-stone-200 dark:border-stone-800 space-y-2">
             <div className="flex items-center justify-between text-xs font-semibold">
               <span>Listing Readiness Score:</span>
-              <span className="font-mono text-emerald-600 dark:text-emerald-400">{readiness}/100</span>
+              <span className="font-mono text-emerald-600 dark:text-emerald-400">
+                {readiness}/100
+              </span>
             </div>
             <div className="w-full bg-stone-200 dark:bg-stone-800 h-2.5 rounded-full overflow-hidden">
               <div
@@ -825,21 +939,36 @@ export const BatchCreateWizard: React.FC = () => {
             </div>
             <p className="text-[11px] text-stone-500">
               {readiness >= 70
-                ? 'Qualifies for L2 Evidence Verified badge with priority buyer matching.'
-                : 'Add more photos, dimensions, or salvage permits to reach 70+ for L2 Verified.'}
+                ? "Qualifies for L2 Evidence Verified badge with priority buyer matching."
+                : "Add more photos, dimensions, or salvage permits to reach 70+ for L2 Verified."}
             </p>
           </div>
 
           {/* Summary Details */}
           <div className="p-4 rounded-xl border border-stone-200 dark:border-stone-800 space-y-3 text-xs">
-            <h3 className="font-bold text-sm text-stone-900 dark:text-stone-100">{title}</h3>
+            <h3 className="font-bold text-sm text-stone-900 dark:text-stone-100">
+              {title}
+            </h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-stone-600 dark:text-stone-400">
-              <div><strong>Material:</strong> {materialType} ({materialSubtype})</div>
-              <div><strong>Quantity:</strong> {quantity} {unit}</div>
-              <div><strong>Price:</strong> {isFree ? 'Free' : `₹${pricePerUnit} / ${unit}`}</div>
-              <div><strong>Condition:</strong> {condition}</div>
-              <div><strong>Location:</strong> {address}</div>
-              <div><strong>Photos Attached:</strong> {photos.length}</div>
+              <div>
+                <strong>Material:</strong> {materialType} ({materialSubtype})
+              </div>
+              <div>
+                <strong>Quantity:</strong> {quantity} {unit}
+              </div>
+              <div>
+                <strong>Price:</strong>{" "}
+                {isFree ? "Free" : `₹${pricePerUnit} / ${unit}`}
+              </div>
+              <div>
+                <strong>Condition:</strong> {condition}
+              </div>
+              <div>
+                <strong>Location:</strong> {address}
+              </div>
+              <div>
+                <strong>Photos Attached:</strong> {photos.length}
+              </div>
             </div>
           </div>
 
@@ -853,11 +982,13 @@ export const BatchCreateWizard: React.FC = () => {
               <input
                 type="checkbox"
                 checked={lawfulDeclaration}
-                onChange={e => setLawfulDeclaration(e.target.checked)}
+                onChange={(e) => setLawfulDeclaration(e.target.checked)}
                 className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500"
               />
               <span className="leading-relaxed">
-                {t("I declare under penalty of perjury that these materials were lawfully salvaged from an authorized site and not stolen or illegally dumped.")}
+                {t(
+                  "I declare under penalty of perjury that these materials were lawfully salvaged from an authorized site and not stolen or illegally dumped.",
+                )}
               </span>
             </label>
           </div>
@@ -876,7 +1007,7 @@ export const BatchCreateWizard: React.FC = () => {
               <button
                 type="button"
                 disabled={saving}
-                onClick={() => handleSave('draft')}
+                onClick={() => handleSave("draft")}
                 className="px-4 py-2.5 rounded-xl border border-stone-300 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 text-xs font-semibold transition"
               >
                 {t("Save Draft")}
@@ -884,11 +1015,11 @@ export const BatchCreateWizard: React.FC = () => {
               <button
                 type="button"
                 disabled={saving || !lawfulDeclaration}
-                onClick={() => handleSave('published')}
+                onClick={() => handleSave("published")}
                 className="flex items-center gap-1.5 px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs shadow-md shadow-emerald-900/20 transition"
               >
                 <CheckCircle2 className="w-4 h-4" />
-                <span>{saving ? 'Publishing…' : t("Publish Batch")}</span>
+                <span>{saving ? "Publishing…" : t("Publish Batch")}</span>
               </button>
             </div>
           </div>
